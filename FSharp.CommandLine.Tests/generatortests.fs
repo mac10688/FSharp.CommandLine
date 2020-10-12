@@ -517,3 +517,87 @@ let interpret_helpEmptyLine () =
     
     let x = Generators.Help.interpret commandFun cmd
     x |> should equal (seq { ""})
+
+[<Test>]
+let defaultGenerator_fullCommand () =
+
+    let commandSummary  = {
+        name = "Name"
+        displayName = Some "DisplayName"
+        description = "Test description"
+        paramNames = None
+        help = None
+        genSuggestions = fun _ -> []
+    }
+    
+    let commandOption1 = {
+        names = ["commandOptionName1"]
+        description = "description"
+        isFlag = false
+        paramNames = [["paramNames1"]]
+        isMatch = fun _ -> Some ["Matches"]
+        genSuggestions = fun _ -> []
+    }
+
+    let commandOption2 = {
+        names = ["commandOptionName2"]
+        description = "description"
+        isFlag = false
+        paramNames = [["paramNames2"]]
+        isMatch = fun _ -> Some ["Matches"]
+        genSuggestions = fun _ -> []
+    }
+
+    let command1 = {
+        config = fun _ -> {
+            summary = {
+                name = "SubName1"
+                displayName = Some "SubDisplayName1"
+                description = "Sub Test description 1"
+                paramNames = Some ["SubTest1"; "SubParams1"]
+                help = None
+                genSuggestions = fun _ -> []
+            }
+            options = []
+            subcommands = []
+        }
+        func = fun args -> (0, args)
+    }
+
+    let command2 = {
+        config = fun _ -> {
+            summary = {
+                name = "SubName2"
+                displayName = Some "SubDisplayName2"
+                description = "Sub Test description 2"
+                paramNames = Some ["SubTest2"; "SubParams2"]
+                help = None
+                genSuggestions = fun _ -> []
+            }
+            options = []
+            subcommands = []
+        }
+        func = fun args -> (0, args)
+    }
+    
+    let commandInfo = {
+        summary = commandSummary
+        options = [commandOption1; commandOption2]
+        subcommands = [command1; command2]
+    }
+    
+    let cmd = {
+        config = fun _ -> commandInfo
+        func = fun args -> (5, args)
+    }
+    
+    let x = Generators.Help.defaultGenerator cmd
+    x |> should equal (seq { 
+        HelpUsage
+        HelpEmptyLine
+        HelpRawString "Test description"
+        HelpEmptyLine
+        HelpSection ("commands", seq { HelpAllSubcommands; HelpEmptyLine })
+        HelpSection ("options", seq { HelpAllOptions })
+       })
+    

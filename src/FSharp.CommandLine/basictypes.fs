@@ -7,6 +7,9 @@ module BasicTypes =
 
   type Args = string list
 
+  let inline compareCollection left right = Seq.fold (&&) true (Seq.zip left right |> Seq.map (fun (aa,bb) -> aa=bb))
+
+  [<CustomEquality; NoComparison>]
   type HelpElement =
     /// prints `usage: $(command name) $(args)`.
     | HelpUsage
@@ -27,6 +30,36 @@ module BasicTypes =
     | HelpSection of sectionName: string * sectionBody: seq<HelpElement>
     /// prints an empty line.
     | HelpEmptyLine
+
+    override this.Equals(y) =
+        match y with
+        | :? HelpElement as other ->
+            match (this, other) with
+            | (HelpUsage, HelpUsage) -> true
+            | (HelpUsageCustomArgs theseArgs, HelpUsageCustomArgs otherArgs) -> compareCollection theseArgs otherArgs
+            | (HelpRawString thisText, HelpRawString otherText) -> thisText = otherText
+            | (HelpAllSubcommands, HelpAllSubcommands) -> true
+            | (HelpSpecificSubcommands theseArgs, HelpSpecificSubcommands otherArgs) -> compareCollection theseArgs otherArgs
+            | (HelpAllOptions, HelpAllOptions) -> true
+            | (HelpSpecificOptions theseArgs, HelpSpecificOptions otherArgs) -> compareCollection theseArgs otherArgs
+            | (HelpSection (thisSectionName, thisSectionBody), HelpSection (otherSectionName, otherSectionBody)) ->
+                thisSectionName = otherSectionName && compareCollection thisSectionBody otherSectionBody
+            | (HelpEmptyLine, HelpEmptyLine) -> true
+            | _ -> false
+        | _ -> false
+
+    //I do not know if this is the best way to implement hash method for this union type.
+    override this.GetHashCode() =
+            match this with
+            | HelpUsage -> 1
+            | HelpUsageCustomArgs theseArgs -> theseArgs.GetHashCode()
+            | HelpRawString thisText -> thisText.GetHashCode()
+            | HelpAllSubcommands -> 4
+            | HelpSpecificSubcommands theseArgs -> theseArgs.GetHashCode()
+            | HelpAllOptions -> 6
+            | HelpSpecificOptions theseArgs -> theseArgs.GetHashCode()
+            | HelpSection (thisSectionName, thisSectionBody) -> thisSectionName.GetHashCode() + thisSectionBody.GetHashCode()
+            | HelpEmptyLine -> 9
 
   module internal Seq =
     let inline snoc x xs = seq { yield! xs; yield x }
